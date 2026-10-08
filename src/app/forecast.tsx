@@ -13,6 +13,7 @@ import { GroupedTxList } from '@/components/GroupedTxList';
 import { BudgetSheetContent } from '@/components/sheets/BudgetSheet';
 import { ScopeSheetContent } from '@/components/sheets/ScopeSheet';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { forecast } from '@/lib/forecast';
 import { curMonth } from '@/lib/calc';
 import { fd, fmt } from '@/lib/format';
@@ -22,13 +23,13 @@ import { useTheme } from '@/theme/ThemeProvider';
 export default function ForecastScreen() {
   const { colors } = useTheme();
   const sheet = useSheet();
-  const { tx, stmts, scope, budgets, fcCat } = useStore((s) => ({
+  const { tx, stmts, scope, budgets, fcCat } = useStore(useShallow((s) => ({
     tx: s.tx,
     stmts: s.stmts,
     scope: s.scope,
     budgets: s.budgets,
     fcCat: s.fcCat,
-  }));
+  })));
   const setFcCat = useStore((s) => s.setFcCat);
 
   const opts = Array.from(new Set([...(Object.keys(budgets) as CatId[]), 'ENTERTAINMENT' as CatId]));

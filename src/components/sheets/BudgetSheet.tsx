@@ -8,6 +8,7 @@ import { Stepper } from '@/components/Stepper';
 import { Chip } from '@/components/Chip';
 import { Button } from '@/components/Button';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useSheet } from '@/components/Sheet';
 import { useToast } from '@/components/Toast';
 import { fmt } from '@/lib/format';
@@ -16,7 +17,7 @@ import { suggestFor } from '@/lib/calc';
 export function BudgetSheetContent({ cat, preset }: { cat: CatId; preset?: number }) {
   const sheet = useSheet();
   const toast = useToast();
-  const { tx, stmts, scope, budgets } = useStore((s) => ({ tx: s.tx, stmts: s.stmts, scope: s.scope, budgets: s.budgets }));
+  const { tx, stmts, scope, budgets } = useStore(useShallow((s) => ({ tx: s.tx, stmts: s.stmts, scope: s.scope, budgets: s.budgets })));
   const setBudget = useStore((s) => s.setBudget);
   const removeBudget = useStore((s) => s.removeBudget);
   const existing = budgets[cat];

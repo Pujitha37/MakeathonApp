@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { Tabs, TabList, TabTrigger, TabSlot } from 'expo-router/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabButton, useNavBarStyle } from '@/components/BottomNav';
@@ -8,8 +9,8 @@ export default function TabsLayout() {
   const navStyle = useNavBarStyle(insets.bottom);
 
   return (
-    <Tabs>
-      <TabSlot />
+    <Tabs style={styles.tabs}>
+      <TabSlot style={styles.slot} />
       <TabList style={navStyle}>
         <TabTrigger name="index" href="/" asChild>
           <TabButton icon="home" label="Home" />
@@ -27,3 +28,8 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabs: { flex: 1 },
+  slot: { flex: 1 },
+});

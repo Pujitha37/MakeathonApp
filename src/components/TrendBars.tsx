@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { coverageEnd, expenses, monthBounds, sum } from '@/lib/calc';
 import { fd, fmt, minD, MON } from '@/lib/format';
 import { TODAY } from '@/data/seed';
@@ -18,7 +19,7 @@ export function TrendBars() {
   const { colors } = useTheme();
   const trend = useStore((s) => s.trend);
   const setTrend = useStore((s) => s.setTrend);
-  const { tx, stmts, scope } = useStore((s) => ({ tx: s.tx, stmts: s.stmts, scope: s.scope }));
+  const { tx, stmts, scope } = useStore(useShallow((s) => ({ tx: s.tx, stmts: s.stmts, scope: s.scope })));
 
   const bars = useMemo<Bar[]>(() => {
     if (trend === 'weekly') {

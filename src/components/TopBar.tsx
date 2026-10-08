@@ -1,6 +1,13 @@
-// Ported from `.topbar` + `renderTop()` in finprofile.html.
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useStore } from '@/store/useStore';
@@ -15,10 +22,46 @@ interface TopBarProps {
   showBack?: boolean;
 }
 
+function PulseDot({ color, listening }: { color: string; listening: boolean }) {
+  const ringSpread = useSharedValue(0);
+
+  useEffect(() => {
+    if (listening) {
+      ringSpread.value = withRepeat(
+        withSequence(
+          withTiming(4, { duration: 500 }),
+          withTiming(0, { duration: 500 }),
+        ),
+        -1,
+      );
+    } else {
+      cancelAnimation(ringSpread);
+      ringSpread.value = 0;
+    }
+  }, [listening, ringSpread]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    position: 'absolute' as const,
+    width: 9 + ringSpread.value * 2,
+    height: 9 + ringSpread.value * 2,
+    borderRadius: (9 + ringSpread.value * 2) / 2,
+    backgroundColor: color,
+    opacity: 0.3 * (1 - ringSpread.value / 4),
+    left: -ringSpread.value,
+    top: -ringSpread.value,
+  }));
+
+  return (
+    <View style={{ width: 9, height: 9 }}>
+      {listening && <Animated.View style={pulseStyle} />}
+      <View style={[styles.dot, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
 export function TopBar({ title, subtitle, showBack }: TopBarProps) {
   const router = useRouter();
   const { colors, dark } = useTheme();
-  const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
   const muted = useStore((s) => s.muted);
   const listening = useStore((s) => s.listening);
@@ -53,7 +96,7 @@ export function TopBar({ title, subtitle, showBack }: TopBarProps) {
         onPress={() => sheet.open(<PiSheetContent />, ['45%'])}
         style={[styles.pichip, { backgroundColor: colors.surface }]}
       >
-        <View style={[styles.dot, { backgroundColor: dotColor }]} />
+        <PulseDot color={dotColor} listening={listening} />
         <AppText type="captionMed">
           {piLabel}
           {offline ? ' · offline' : ''}

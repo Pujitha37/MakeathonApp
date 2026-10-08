@@ -8,17 +8,18 @@ import { Button } from '@/components/Button';
 import { AdviceCard } from '@/components/AdviceCard';
 import { SettingRow } from '@/components/SheetParts';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { adviceList } from '@/lib/advice';
 
 export default function AdviceScreen() {
-  const { tx, stmts, scope, budgets, goals, dismissed } = useStore((s) => ({
+  const { tx, stmts, scope, budgets, goals, dismissed } = useStore(useShallow((s) => ({
     tx: s.tx,
     stmts: s.stmts,
     scope: s.scope,
     budgets: s.budgets,
     goals: s.goals,
     dismissed: s.dismissed,
-  }));
+  })));
   const resetDismissed = useStore((s) => s.resetDismissed);
   const adv = adviceList(tx, stmts, scope, budgets, goals, dismissed);
   const [notif, setNotif] = useState(false);

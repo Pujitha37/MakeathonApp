@@ -1,7 +1,7 @@
 // Ported from `askHTML()` / `ask()` / `answer()` wiring in finprofile.html.
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
@@ -17,6 +17,7 @@ import { StatusChip } from '@/components/StatusChip';
 import { useSheet } from '@/components/Sheet';
 import { BudgetSheetContent } from '@/components/sheets/BudgetSheet';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { answer, type AskAnswer } from '@/lib/ask-engine';
 import { SOURCES } from '@/data/types';
 import type { Source } from '@/data/types';
@@ -50,19 +51,21 @@ const SUGG = [
 export default function AskScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string }>();
   const insets = useSafeAreaInsets();
   const sheet = useSheet();
   const scrollRef = useRef<ScrollView>(null);
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
+  const initialAsked = useRef(false);
 
-  const { tx, stmts, scope, budgets, loans } = useStore((s) => ({
+  const { tx, stmts, scope, budgets, loans } = useStore(useShallow((s) => ({
     tx: s.tx,
     stmts: s.stmts,
     scope: s.scope,
     budgets: s.budgets,
     loans: s.loans,
-  }));
+  })));
   const setScope = useStore((s) => s.setScope);
   const setActTab = useStore((s) => s.setActTab);
 
@@ -76,6 +79,13 @@ export default function AskScreen() {
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     }, 650);
   };
+
+  useEffect(() => {
+    if (params.q && !initialAsked.current) {
+      initialAsked.current = true;
+      ask(params.q);
+    }
+  }, [params.q]);
 
   const runAct = (act: NonNullable<AskAnswer['act']>) => {
     if (act.action === 'goRecurring') {

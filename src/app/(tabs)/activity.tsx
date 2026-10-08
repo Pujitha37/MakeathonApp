@@ -13,6 +13,7 @@ import { RecurringTab } from '@/components/RecurringTab';
 import { useSheet } from '@/components/Sheet';
 import { ImportSheetContent } from '@/components/sheets/ImportSheet';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { sum } from '@/lib/calc';
 import { detectRecurring, isRec } from '@/lib/recurring';
 import { fd, fmt } from '@/lib/format';
@@ -21,7 +22,7 @@ import type { Source, Tx } from '@/data/types';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export default function ActivityScreen() {
-  const { tx, stmts, actTab, stmtSrc } = useStore((s) => ({ tx: s.tx, stmts: s.stmts, actTab: s.actTab, stmtSrc: s.stmtSrc }));
+  const { tx, stmts, actTab, stmtSrc } = useStore(useShallow((s) => ({ tx: s.tx, stmts: s.stmts, actTab: s.actTab, stmtSrc: s.stmtSrc })));
   const setActTab = useStore((s) => s.setActTab);
   const setStmtSrc = useStore((s) => s.setStmtSrc);
   const openStmt = useStore((s) => s.openStmt);

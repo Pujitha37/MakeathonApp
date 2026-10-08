@@ -1,6 +1,6 @@
 // Ported from `quickAddCard()` / `runHomeQuickAdd()` / `savedBlock()` / `savedCard()`.
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useStore } from '@/store/useStore';
 import { parseExpenses } from '@/lib/parse';
@@ -63,6 +63,16 @@ export function QuickAddCard() {
         <AppText type="h3" style={{ fontSize: 16, fontWeight: '800' }}>
           ✍️ Add an expense
         </AppText>
+        <Pressable
+          onPress={() => {
+            setText('Swiggy 220 and Ola 180 yesterday');
+            setTimeout(() => run('Swiggy 220 and Ola 180 yesterday'), 100);
+          }}
+          style={[styles.micLink, { backgroundColor: colors.indigoSoft }]}
+        >
+          <Icon name="mic" size={16} color={colors.indigo} />
+          <AppText type="captionMed" color={colors.indigo}>Speak</AppText>
+        </Pressable>
       </View>
       <View style={[styles.inputRow, { backgroundColor: colors.surface2 }]}>
         <TextInput
@@ -79,13 +89,13 @@ export function QuickAddCard() {
           <Icon name="send" size={20} color="#fff" />
         </Pressable>
       </View>
-      <View style={styles.chipRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
         {EXAMPLES.map((q) => (
           <Pressable key={q} onPress={() => run(q)} style={[styles.chip, { backgroundColor: colors.surface, ...shadow }]}>
             <AppText type="captionMed">{q}</AppText>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {thinking && (
         <View style={styles.thinkRow}>
@@ -167,7 +177,8 @@ export function QuickAddCard() {
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  micLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -179,7 +190,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 16, paddingVertical: 10 },
   sendBtn: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
   thinkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   savedWrap: { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },

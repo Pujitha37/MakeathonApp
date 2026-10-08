@@ -1,6 +1,6 @@
-// Ported from `.fabstack` / `.fab-add` / `.fab-robot` in finprofile.html.
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -10,6 +10,31 @@ import { AppText } from './AppText';
 import { Mascot } from './Mascot';
 
 export type ScreenKind = 'home' | 'activity' | 'insights' | 'plan' | 'ask' | 'forecast' | 'advice';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function FabButton({ children, onPress, style }: { children: React.ReactNode; onPress: () => void; style: any }) {
+  const scale = useSharedValue(0.6);
+  const translateY = useSharedValue(10);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = withSpring(1, { damping: 8, stiffness: 180 });
+    translateY.value = withSpring(0, { damping: 8, stiffness: 180 });
+    opacity.value = withSpring(1, { damping: 8, stiffness: 180 });
+  }, [scale, translateY, opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <AnimatedPressable onPress={onPress} style={[style, animStyle]}>
+      {children}
+    </AnimatedPressable>
+  );
+}
 
 export function FabStack({ screen }: { screen: ScreenKind }) {
   const { colors, shadow } = useTheme();
@@ -24,7 +49,7 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
   return (
     <View style={[styles.stack, { bottom: 84 + insets.bottom }]} pointerEvents="box-none">
       {showAdd && (
-        <Pressable
+        <FabButton
           onPress={() => {
             router.navigate('/');
             requestQuickAddFocus();
@@ -35,10 +60,10 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
           <AppText type="h3" color="#2A1E05" style={{ fontWeight: '800' }}>
             Add
           </AppText>
-        </Pressable>
+        </FabButton>
       )}
       {showAsk && (
-        <Pressable
+        <FabButton
           onPress={() => router.push('/ask')}
           style={[styles.fabRobot, { backgroundColor: colors.surface, borderColor: colors.indigoSoft, ...shadow }]}
         >
@@ -46,7 +71,7 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
           <AppText type="h3" color={colors.indigo} style={{ fontWeight: '800' }}>
             Ask
           </AppText>
-        </Pressable>
+        </FabButton>
       )}
     </View>
   );

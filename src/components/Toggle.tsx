@@ -1,6 +1,6 @@
 // Ported from `.toggle` — a 50x30 pill switch with a sliding 24px thumb.
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export function Toggle({ on, onPress }: { on: boolean; onPress: () => void }) {
@@ -26,10 +26,15 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 3px rgba(0,0,0,0.2)' } as object,
+      default: {
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        shadowOffset: { width: 0, height: 1 },
+      },
+    }),
   },
 });

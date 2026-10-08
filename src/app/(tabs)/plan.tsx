@@ -18,6 +18,7 @@ import { ContributionSheetContent } from '@/components/sheets/ContributionSheet'
 import { GoalHistorySheetContent } from '@/components/sheets/GoalHistorySheet';
 import { NewGoalSheetContent } from '@/components/sheets/NewGoalSheet';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { budgetStatus, coverageEnd, curMonth, goalStatus, suggestFor } from '@/lib/calc';
 import { fd, fmt } from '@/lib/format';
 import { CATS, CatId } from '@/theme/tokens';
@@ -25,7 +26,7 @@ import { CATS, CatId } from '@/theme/tokens';
 export default function PlanScreen() {
   const sheet = useSheet();
   const toast = useToast();
-  const { tx, stmts, goals, budgets, scope, planTab, perDay } = useStore((s) => ({
+  const { tx, stmts, goals, budgets, scope, planTab, perDay } = useStore(useShallow((s) => ({
     tx: s.tx,
     stmts: s.stmts,
     goals: s.goals,
@@ -33,7 +34,7 @@ export default function PlanScreen() {
     scope: s.scope,
     planTab: s.planTab,
     perDay: s.perDay,
-  }));
+  })));
   const setPlanTab = useStore((s) => s.setPlanTab);
   const togglePerDay = useStore((s) => s.togglePerDay);
   const setBudget = useStore((s) => s.setBudget);

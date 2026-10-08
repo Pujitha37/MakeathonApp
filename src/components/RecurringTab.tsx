@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { CAT, icoBg } from '@/theme/tokens';
 import { fmt, MON, ord } from '@/lib/format';
 import { TODAY } from '@/data/seed';
@@ -22,7 +23,7 @@ import { AddEmiSheetContent } from './sheets/AddEmiSheet';
 export function RecurringTab() {
   const { colors } = useTheme();
   const sheet = useSheet();
-  const { tx, stmts, loans } = useStore((s) => ({ tx: s.tx, stmts: s.stmts, loans: s.loans }));
+  const { tx, stmts, loans } = useStore(useShallow((s) => ({ tx: s.tx, stmts: s.stmts, loans: s.loans })));
   const recur = detectRecurring(tx);
   const loansActive = activeLoans(tx, stmts, loans);
   const subs = recur.filter((r) => SUBCATS.includes(r.cat));

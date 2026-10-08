@@ -24,12 +24,12 @@ export function Screen({ title, subtitle, showBack, showScopeBar = true, screen,
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.flex, { backgroundColor: colors.paper, paddingTop: insets.top }]}>
+    <View style={[styles.outer, { backgroundColor: colors.paper, paddingTop: insets.top }]}>
       <TopBar title={title} subtitle={subtitle} showBack={showBack} />
       {showScopeBar && <ScopeBar />}
       <ScrollView
         ref={scrollRef}
-        style={styles.flex}
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -42,6 +42,7 @@ export function Screen({ title, subtitle, showBack, showScopeBar = true, screen,
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  outer: { flex: 1, overflow: 'hidden' },
+  scroll: { flex: 1 },
   content: { paddingHorizontal: 16, paddingBottom: 120, paddingTop: 4 },
 });

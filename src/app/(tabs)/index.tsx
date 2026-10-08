@@ -1,6 +1,6 @@
 // Ported from `homeHTML()` in finprofile.html.
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet as SS, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Hero } from '@/components/Hero';
@@ -14,9 +14,11 @@ import { ScheduleRow } from '@/components/ScheduleRow';
 import { SparkLine } from '@/components/SparkLine';
 import { StatusChip } from '@/components/StatusChip';
 import { TxRow } from '@/components/TxRow';
-import { Button } from '@/components/Button';
+import { Icon } from '@/components/Icon';
 import { SectionTitle } from '@/components/SectionTitle';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useTheme } from '@/theme/ThemeProvider';
 import { budgetStatus, byCat, coverageEnd, expenses, monthBounds, sum } from '@/lib/calc';
 import { forecast } from '@/lib/forecast';
 import { adviceList } from '@/lib/advice';
@@ -26,19 +28,85 @@ import { SHORT } from '@/data/types';
 import { TODAY } from '@/data/seed';
 import { CAT, CatId } from '@/theme/tokens';
 
+const ASK_CHIPS: [string, string][] = [
+  ['Food last month', 'How much did I spend on food last month?'],
+  ['Biggest this month', 'Biggest expenses this month'],
+  ['vs last month', 'Compare spending with last month'],
+  ['My EMIs', 'How much do I pay in EMIs?'],
+];
+
+const askStyles = SS.create({
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 18,
+    paddingLeft: 14,
+    paddingVertical: 6,
+    paddingRight: 6,
+  },
+  input: { flex: 1, fontSize: 16, paddingVertical: 10 },
+  sendBtn: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
+});
+
+function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
+  const { colors, shadow } = useTheme();
+  const [text, setText] = React.useState('');
+
+  const go = (q: string) => {
+    if (!q.trim()) return;
+    router.push({ pathname: '/ask', params: { q } });
+  };
+
+  return (
+    <Card style={{ padding: 12 }}>
+      <View style={[askStyles.inputRow, { backgroundColor: colors.surface2 }]}>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          onSubmitEditing={() => go(text)}
+          placeholder="Ask a question about your spending"
+          placeholderTextColor={colors.ink3}
+          style={[askStyles.input, { color: colors.ink }]}
+          returnKeyType="send"
+        />
+        <Pressable onPress={() => go(text)} style={[askStyles.sendBtn, { backgroundColor: colors.indigo }]}>
+          <Icon name="send" size={20} color="#fff" />
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {ASK_CHIPS.map(([label, query]) => (
+            <Pressable
+              key={label}
+              onPress={() => router.push({ pathname: '/ask', params: { q: query } })}
+              style={[askStyles.chip, { backgroundColor: colors.surface, ...shadow }]}
+            >
+              <AppText type="captionMed">{label}</AppText>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </Card>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { tx, stmts, loans, budgets, goals, dismissed, scope, month, fcCat } = useStore((s) => ({
-    tx: s.tx,
-    stmts: s.stmts,
-    loans: s.loans,
-    budgets: s.budgets,
-    goals: s.goals,
-    dismissed: s.dismissed,
-    scope: s.scope,
-    month: s.month,
-    fcCat: s.fcCat,
-  }));
+  const { tx, stmts, loans, budgets, goals, dismissed, scope, month, fcCat } = useStore(
+    useShallow((s) => ({
+      tx: s.tx,
+      stmts: s.stmts,
+      loans: s.loans,
+      budgets: s.budgets,
+      goals: s.goals,
+      dismissed: s.dismissed,
+      scope: s.scope,
+      month: s.month,
+      fcCat: s.fcCat,
+    }))
+  );
   const setMonth = useStore((s) => s.setMonth);
 
   const { y, m } = month;
@@ -105,12 +173,7 @@ export default function HomeScreen() {
 
       <QuickAddCard />
 
-      <Card style={{ padding: 12 }}>
-        <AppText type="h3" style={{ marginBottom: 8 }}>
-          Ask a question about your spending
-        </AppText>
-        <Button label="Ask the Pi →" variant="soft" block onPress={() => router.push('/ask')} />
-      </Card>
+      <HomeAskCard router={router} />
 
       {adv.length > 0 && (
         <>
@@ -165,8 +228,8 @@ export default function HomeScreen() {
             </AppText>
             <StatusChip tone={f.budget && f.projected > f.budget ? 'warn' : 'ok'} label={f.budget && f.projected > f.budget ? 'May exceed' : 'Within budget'} />
           </View>
-          <AppText type="label" muted>
-            About <AppText type="labelMed">{fmt(f.projected)}</AppText> by 31 Oct if the current pace continues
+          <AppText type="caption" muted>
+            About <AppText type="captionMed" num>{fmt(f.projected)}</AppText> by 31 Oct if the current pace continues
             {f.budget ? ` (budget ${fmt(f.budget)})` : ''}. Estimate only.
           </AppText>
           <SparkLine f={f} mini />
@@ -174,7 +237,7 @@ export default function HomeScreen() {
       ) : (
         <Card>
           <AppText type="h3">Not enough data yet</AppText>
-          <AppText type="label" muted>
+          <AppText type="caption" muted>
             {f.reason}
           </AppText>
         </Card>

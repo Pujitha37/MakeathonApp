@@ -16,6 +16,7 @@ import { ProgressBar } from '@/components/Bars';
 import { useSheet } from '@/components/Sheet';
 import { GroupedTxList } from '@/components/GroupedTxList';
 import { useStore } from '@/store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { byCat, coverageEnd, expenses, insightsRange, sum } from '@/lib/calc';
 import { adviceList } from '@/lib/advice';
 import { fd, fmt } from '@/lib/format';
@@ -27,7 +28,7 @@ export default function InsightsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const sheet = useSheet();
-  const { tx, stmts, scope, budgets, goals, dismissed, insPeriod, selCat } = useStore((s) => ({
+  const { tx, stmts, scope, budgets, goals, dismissed, insPeriod, selCat } = useStore(useShallow((s) => ({
     tx: s.tx,
     stmts: s.stmts,
     scope: s.scope,
@@ -36,7 +37,7 @@ export default function InsightsScreen() {
     dismissed: s.dismissed,
     insPeriod: s.insPeriod,
     selCat: s.selCat,
-  }));
+  })));
   const setInsPeriod = useStore((s) => s.setInsPeriod);
   const setSelCat = useStore((s) => s.setSelCat);
 
