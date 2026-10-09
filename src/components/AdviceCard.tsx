@@ -73,7 +73,7 @@ export function AdviceCard({ item, preview }: { item: AdviceItem; preview?: bool
           <Button label={`View ${item.ev.length} transaction${item.ev.length !== 1 ? 's' : ''}`} sm variant="soft" onPress={viewEvidence} />
         )}
         {preview ? (
-          <Button label="More advice" sm variant="ghost" onPress={() => router.push('/advice')} />
+          <Button label="More advice" sm variant="ghost" onPress={() => router.push('/financial/advice')} />
         ) : (
           <>
             {item.link && (
@@ -81,7 +81,7 @@ export function AdviceCard({ item, preview }: { item: AdviceItem; preview?: bool
                 label={item.link === 'forecast' ? 'Open forecast' : 'Open goals'}
                 sm
                 variant="soft"
-                onPress={() => (item.link === 'forecast' ? router.push('/forecast') : router.push('/plan'))}
+                onPress={() => (item.link === 'forecast' ? router.push('/financial/forecast') : router.push('/financial/plan'))}
               />
             )}
             <Button label={showWhy ? 'Hide reason' : 'Why am I seeing this?'} sm variant="ghost" onPress={() => setShowWhy((v) => !v)} />

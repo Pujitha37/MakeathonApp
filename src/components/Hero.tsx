@@ -107,7 +107,7 @@ export function Hero({
 
   if (!hasData) return body;
   return (
-    <Pressable onPress={() => router.push('/insights')} style={{ marginBottom: 0 }}>
+    <Pressable onPress={() => router.push('/financial/insights')} style={{ marginBottom: 0 }}>
       {body}
     </Pressable>
   );

@@ -90,7 +90,7 @@ export default function AskScreen() {
   const runAct = (act: NonNullable<AskAnswer['act']>) => {
     if (act.action === 'goRecurring') {
       setActTab('recurring');
-      router.push('/activity');
+      router.push('/financial/activity');
     } else if (act.action === 'editBudget' && act.cat) {
       sheet.open(<BudgetSheetContent cat={act.cat} />, ['55%', '90%']);
     }

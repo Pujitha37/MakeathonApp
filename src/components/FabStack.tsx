@@ -51,7 +51,7 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
       {showAdd && (
         <FabButton
           onPress={() => {
-            router.navigate('/');
+            router.navigate('/financial');
             requestQuickAddFocus();
           }}
           style={[styles.fabAdd, { backgroundColor: colors.marigold }]}
@@ -64,7 +64,7 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
       )}
       {showAsk && (
         <FabButton
-          onPress={() => router.push('/ask')}
+          onPress={() => router.push('/financial/ask')}
           style={[styles.fabRobot, { backgroundColor: colors.surface, borderColor: colors.indigoSoft, ...shadow }]}
         >
           <Mascot size={42} />
