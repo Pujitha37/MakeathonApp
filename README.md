@@ -23,7 +23,23 @@ In the output, you'll find options to open the app in a
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+You can start developing by editing the files inside **src/app**. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## Scam Guard
+
+The **Fraud detection** page connects to the Scam Guard Raspberry Pi service documented in
+[`mobile_integration.md`](https://github.com/arjunkeerthi1529/wakeword-test/blob/main/docs/mobile_integration.md).
+Open it from Home, enter the Pi address (for example `http://192.168.1.20:8000`), connect, then start monitoring
+with the phone call on speaker near the Pi microphone. The page displays live transcript and model/rule warnings;
+analysis and audio stay on the Pi.
+
+The Pi and phone must be on the same trusted private network. The service currently has no authentication or
+encryption. Keep the app open during a monitored call: this integration does not add an Android foreground service
+or push notifications, and iOS may suspend its socket in the background. For simulator testing, the backend guide
+documents its simulator and platform-specific host addresses.
+
+The app's Expo config includes local-network access settings for iOS and cleartext HTTP to the local Pi on Android.
+Rebuild the native app for those settings to take effect; they are not applied by Expo Go.
 
 ## Get a fresh project
 

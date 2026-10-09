@@ -9,7 +9,7 @@ import { Icon } from './Icon';
 import { AppText } from './AppText';
 import { Mascot } from './Mascot';
 
-export type ScreenKind = 'home' | 'activity' | 'insights' | 'plan' | 'ask' | 'forecast' | 'advice';
+export type ScreenKind = 'home' | 'activity' | 'insights' | 'plan' | 'ask' | 'forecast' | 'advice' | 'fraud';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -42,8 +42,8 @@ export function FabStack({ screen }: { screen: ScreenKind }) {
   const insets = useSafeAreaInsets();
   const requestQuickAddFocus = useStore((s) => s.requestQuickAddFocus);
 
-  const showAdd = screen !== 'home' && screen !== 'ask';
-  const showAsk = screen !== 'ask';
+  const showAdd = screen !== 'home' && screen !== 'ask' && screen !== 'fraud';
+  const showAsk = screen !== 'ask' && screen !== 'fraud';
   if (!showAdd && !showAsk) return null;
 
   return (

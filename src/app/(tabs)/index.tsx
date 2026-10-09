@@ -94,6 +94,7 @@ function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const { tx, stmts, loans, budgets, goals, dismissed, scope, month, fcCat } = useStore(
     useShallow((s) => ({
       tx: s.tx,
@@ -174,6 +175,18 @@ export default function HomeScreen() {
       <QuickAddCard />
 
       <HomeAskCard router={router} />
+
+      <SectionTitle label="Call protection" action="Open" onAction={() => router.push('/fraud-detection')} />
+      <Card onPress={() => router.push('/fraud-detection')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.indigoSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <AppText style={{ fontSize: 24 }}>🛡️</AppText>
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText type="h3">Scam Guard</AppText>
+          <AppText type="caption" muted>Connect to your Pi to monitor speakerphone calls</AppText>
+        </View>
+        <AppText type="h3" muted>›</AppText>
+      </Card>
 
       {adv.length > 0 && (
         <>
