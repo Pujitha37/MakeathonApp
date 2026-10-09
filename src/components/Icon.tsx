@@ -2,7 +2,7 @@
 import React from 'react';
 import Svg, { Path, Circle } from 'react-native-svg';
 
-export type IconName = 'home' | 'list' | 'pie' | 'target' | 'chat' | 'mic' | 'send' | 'back' | 'l' | 'r' | 'down' | 'check' | 'moon' | 'sun' | 'plus';
+export type IconName = 'home' | 'list' | 'pie' | 'target' | 'chat' | 'mic' | 'send' | 'back' | 'l' | 'r' | 'down' | 'check' | 'moon' | 'sun' | 'plus' | 'bell' | 'calendar';
 
 interface IconProps {
   name: IconName;
@@ -110,6 +110,19 @@ export function Icon({ name, size = 22, color = 'currentColor', strokeWidth }: I
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={sw ?? 2.6} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'bell':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M6 17h12l-2-3V9a4 4 0 0 0-8 0v5l-2 3Zm4 3h4" stroke={color} strokeWidth={sw ?? 2} strokeLinejoin="round" strokeLinecap="round" />
+        </Svg>
+      );
+    case 'calendar':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M3 6h18v14H3z" stroke={color} strokeWidth={sw ?? 2} strokeLinejoin="round" />
+          <Path d="M7 4v4m10-4v4M3 11h18M8 16h2m4 0h2" stroke={color} strokeWidth={sw ?? 2} strokeLinecap="round" />
         </Svg>
       );
     default:

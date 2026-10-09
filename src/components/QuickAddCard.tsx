@@ -10,6 +10,7 @@ import { CAT, CatId } from '@/theme/tokens';
 import { Card } from './Card';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
+import { BotTypingRow, FINANCIAL_SAMPLES } from './MicRecorder';
 import { Mascot } from './Mascot';
 import { useSheet } from './Sheet';
 import { useToast } from './Toast';
@@ -29,6 +30,7 @@ export function QuickAddCard() {
   const inputRef = useRef<TextInput>(null);
 
   const [text, setText] = useState('');
+  const [recording, setRecording] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [saved, setSaved] = useState<Tx[]>([]);
   const [bad, setBad] = useState<string[]>([]);
@@ -63,31 +65,42 @@ export function QuickAddCard() {
         <AppText type="h3" style={{ fontSize: 16, fontWeight: '800' }}>
           ✍️ Add an expense
         </AppText>
-        <Pressable
-          onPress={() => {
-            setText('Swiggy 220 and Ola 180 yesterday');
-            setTimeout(() => run('Swiggy 220 and Ola 180 yesterday'), 100);
-          }}
-          style={[styles.micLink, { backgroundColor: colors.indigoSoft }]}
-        >
-          <Icon name="mic" size={16} color={colors.indigo} />
-          <AppText type="captionMed" color={colors.indigo}>Speak</AppText>
-        </Pressable>
+        {!recording && (
+          <Pressable
+            onPress={() => setRecording(true)}
+            style={[styles.micLink, { backgroundColor: colors.indigoSoft }]}
+          >
+            <Icon name="mic" size={16} color={colors.indigo} />
+            <AppText type="labelMed" style={{ color: colors.indigo }}>Speak</AppText>
+          </Pressable>
+        )}
       </View>
       <View style={[styles.inputRow, { backgroundColor: colors.surface2 }]}>
-        <TextInput
-          ref={inputRef}
-          value={text}
-          onChangeText={setText}
-          onSubmitEditing={() => run(text)}
-          placeholder="e.g. Swiggy 220 and Ola 180 yesterday"
-          placeholderTextColor={colors.ink3}
-          style={[styles.input, { color: colors.ink }]}
-          returnKeyType="done"
-        />
-        <Pressable onPress={() => run(text)} style={[styles.sendBtn, { backgroundColor: colors.indigo }]}>
-          <Icon name="send" size={20} color="#fff" />
-        </Pressable>
+        {recording ? (
+          <BotTypingRow
+            color={colors.indigo}
+            bgColor={colors.indigoSoft}
+            samples={FINANCIAL_SAMPLES}
+            onCancel={() => setRecording(false)}
+            onResult={(t) => { setRecording(false); setText(t); setTimeout(() => run(t), 80); }}
+          />
+        ) : (
+          <>
+            <TextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              onSubmitEditing={() => run(text)}
+              placeholder="e.g. Swiggy 220 and Ola 180 yesterday"
+              placeholderTextColor={colors.ink3}
+              style={[styles.input, { color: colors.ink }]}
+              returnKeyType="done"
+            />
+            <Pressable onPress={() => run(text)} style={[styles.sendBtn, { backgroundColor: colors.indigo }]}>
+              <Icon name="send" size={20} color="#fff" />
+            </Pressable>
+          </>
+        )}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
         {EXAMPLES.map((q) => (
