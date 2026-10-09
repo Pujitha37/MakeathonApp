@@ -1,7 +1,3 @@
-import { AppText } from '@/components/AppText';
-import { Icon } from '@/components/Icon';
-import { useTheme } from '@/theme/ThemeProvider';
-import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -10,7 +6,11 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/theme/ThemeProvider';
+import { AppText } from '@/components/AppText';
+import { Icon } from '@/components/Icon';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 80;
@@ -28,40 +28,9 @@ type Profile = {
   route: string | null;
 };
 
-const PROFILES: Profile[] = [
-  {
-    id: 'personal',
-    label: 'Personal',
-    subtitle: 'Goals & habits',
-    description: 'Track personal goals, build daily habits, and stay on top of what matters to you.',
-    icon: 'home',
-    accent: 'sage',
-    accentSoft: 'sageSoft',
-    route: null,
-  },
-  {
-    id: 'financial',
-    label: 'Financial',
-    subtitle: 'Spending & savings',
-    description: 'Track expenses, manage budgets, plan goals, and understand where your money goes.',
-    icon: 'pie',
-    accent: 'indigo',
-    accentSoft: 'indigoSoft',
-    route: '/financial',
-  },
-  {
-    id: 'work',
-    label: 'Work',
-    subtitle: 'Tasks & focus',
-    description: 'Manage action items, summarise meetings, and stay ahead of your commitments.',
-    icon: 'list',
-    accent: 'marigold',
-    accentSoft: 'marigoldSoft',
-    route: '/work',
-  },
-];
+// ─── Preview components ───────────────────────────────────────────────────────
 
-function ProfileCard({ profile, onPress }: { profile: Profile; onPress: () => void }) {
+function PersonalPreview({ accent, accentSoft: _accentSoft }: { accent: string; accentSoft: string }) {
   const { colors } = useTheme();
   const items = [
     { label: 'Gym 3× each week', pct: 67, a: accent },
@@ -108,7 +77,6 @@ function WorkPreview({ accent, accentSoft }: { accent: string; accentSoft: strin
   const { colors } = useTheme();
   return (
     <View style={preview.wrap}>
-      {/* Email digest row */}
       <View style={preview.chipRow}>
         <View style={[preview.chip, { backgroundColor: colors.marigoldSoft }]}>
           <AppText type="captionMed" style={{ fontSize: 11, color: colors.marigold }}>1 urgent email</AppText>
@@ -117,11 +85,9 @@ function WorkPreview({ accent, accentSoft }: { accent: string; accentSoft: strin
           <AppText type="captionMed" style={{ fontSize: 11, color: accent }}>8 in digest</AppText>
         </View>
       </View>
-      {/* Pending draft */}
       <View style={[preview.chip, { backgroundColor: colors.indigoSoft, alignSelf: 'flex-start', marginTop: 6 }]}>
         <AppText type="captionMed" style={{ fontSize: 11, color: colors.indigo }}>1 reply needs approval</AppText>
       </View>
-      {/* Reminder + recent meeting */}
       <View style={[preview.bulletRow, { marginTop: 10 }]}>
         <View style={[preview.bulletDot, { backgroundColor: accent }]} />
         <AppText type="caption" muted style={{ fontSize: 11 }}>Reminder · Standup at 2:00 PM</AppText>
@@ -147,7 +113,9 @@ const preview = StyleSheet.create({
   bulletDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
 });
 
-function ProfileCard({ profile }: { profile: Profile & { accent: string; accentSoft: string } }) {
+// ─── Profile card ─────────────────────────────────────────────────────────────
+
+function ProfileCard({ profile }: { profile: Profile }) {
   const { colors, shadow } = useTheme();
   const router = useRouter();
   const isActive = profile.route !== null;
@@ -168,29 +136,27 @@ function ProfileCard({ profile }: { profile: Profile & { accent: string; accentS
         },
       ]}
     >
-      {/* Icon tile */}
       <View style={[styles.iconTile, { backgroundColor: profile.accentSoft }]}>
         <Icon name={profile.icon} size={26} color={profile.accent} />
       </View>
 
-      {/* Label */}
       <AppText type="captionMed" style={{ color: profile.accent, marginTop: 18, marginBottom: 3, fontSize: 10, letterSpacing: 1.1 }}>
         {profile.subtitle.toUpperCase()}
       </AppText>
       <AppText type="titleXl" style={{ marginBottom: 8 }}>{profile.label}</AppText>
       <AppText type="label" muted style={{ lineHeight: 20 }}>{profile.description}</AppText>
 
-      {/* Preview content */}
       {profile.id === 'personal' && <PersonalPreview accent={profile.accent} accentSoft={profile.accentSoft} />}
       {profile.id === 'financial' && <FinancialPreview accent={profile.accent} accentSoft={profile.accentSoft} />}
       {profile.id === 'work' && <WorkPreview accent={profile.accent} accentSoft={profile.accentSoft} />}
 
-      {/* CTA */}
       <View style={styles.cardFooter}>
         {isActive ? (
           <View style={[styles.ctaRow, { backgroundColor: profile.accent }]}>
             <AppText type="captionMed" style={{ color: '#fff' }}>Open {profile.label}</AppText>
-            <Icon name="back" size={16} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <Icon name="back" size={16} color="#fff" />
+            </View>
           </View>
         ) : (
           <View style={[styles.ctaRow, { backgroundColor: colors.surface2 }]}>
@@ -201,6 +167,8 @@ function ProfileCard({ profile }: { profile: Profile & { accent: string; accentS
     </Pressable>
   );
 }
+
+// ─── Dot indicator ────────────────────────────────────────────────────────────
 
 function DotIndicator({ count, active }: { count: number; active: number }) {
   const { colors } = useTheme();
@@ -222,23 +190,25 @@ function DotIndicator({ count, active }: { count: number; active: number }) {
   );
 }
 
+// ─── Home screen ──────────────────────────────────────────────────────────────
+
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(1);
   const listRef = useRef<FlatList>(null);
 
-  const handleViewable = useRef(({ viewableItems }: any) => {
+  const [handleViewable] = useState(() => ({ viewableItems }: any) => {
     if (viewableItems.length > 0) setActiveIndex(viewableItems[0].index ?? 0);
-  }).current;
+  });
 
-  const PROFILES = useMemo(() => [
+  const PROFILES = useMemo<Profile[]>(() => [
     {
       id: 'personal',
       label: 'Personal',
       subtitle: 'Goals & habits',
       description: 'Track goals, build daily habits, and stay on top of what matters to you.',
-      icon: 'home' as const,
+      icon: 'home',
       accent: colors.sage,
       accentSoft: colors.sageSoft,
       route: '/personal',
@@ -248,7 +218,7 @@ export default function HomeScreen() {
       label: 'Financial',
       subtitle: 'Spending & savings',
       description: 'Track expenses, manage budgets, plan goals, and understand where your money goes.',
-      icon: 'pie' as const,
+      icon: 'pie',
       accent: colors.indigo,
       accentSoft: colors.indigoSoft,
       route: '/financial',
@@ -258,7 +228,7 @@ export default function HomeScreen() {
       label: 'Work',
       subtitle: 'Email & meetings',
       description: 'Digest your inbox, approve reply drafts, record meeting notes, and set reminders — all on your Pi.',
-      icon: 'list' as const,
+      icon: 'list',
       accent: colors.marigold,
       accentSoft: colors.marigoldSoft,
       route: null,
