@@ -55,7 +55,7 @@ const PROFILES: Profile[] = [
     icon: 'list',
     accent: 'marigold',
     accentSoft: 'marigoldSoft',
-    route: null,
+    route: '/work',
   },
 ];
 

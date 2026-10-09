@@ -41,6 +41,12 @@ documents its simulator and platform-specific host addresses.
 The app's Expo config includes local-network access settings for iOS and cleartext HTTP to the local Pi on Android.
 Rebuild the native app for those settings to take effect; they are not applied by Expo Go.
 
+## Work profile
+
+The **Work** profile currently provides entry screens for an email summariser and a call summariser.
+These are integration placeholders only: no email provider or call service is connected, and the app does not
+access inboxes, record calls, or generate summaries until the backend API and authorization contract are available.
+
 ## Get a fresh project
 
 When you're ready, run:

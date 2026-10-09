@@ -51,6 +51,7 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="financial" />
+                <Stack.Screen name="work" />
               </Stack>
             </SheetProvider>
           </ToastProvider>
