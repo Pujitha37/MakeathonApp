@@ -1,4 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { AppText } from '@/components/AppText';
+import { Icon } from '@/components/Icon';
+import { useTheme } from '@/theme/ThemeProvider';
+import { useRouter } from 'expo-router';
+import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -6,11 +10,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@/theme/ThemeProvider';
-import { AppText } from '@/components/AppText';
-import { Icon } from '@/components/Icon';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 80;
@@ -28,7 +28,40 @@ type Profile = {
   route: string | null;
 };
 
-function PersonalPreview({ accent, accentSoft }: { accent: string; accentSoft: string }) {
+const PROFILES: Profile[] = [
+  {
+    id: 'personal',
+    label: 'Personal',
+    subtitle: 'Goals & habits',
+    description: 'Track personal goals, build daily habits, and stay on top of what matters to you.',
+    icon: 'home',
+    accent: 'sage',
+    accentSoft: 'sageSoft',
+    route: null,
+  },
+  {
+    id: 'financial',
+    label: 'Financial',
+    subtitle: 'Spending & savings',
+    description: 'Track expenses, manage budgets, plan goals, and understand where your money goes.',
+    icon: 'pie',
+    accent: 'indigo',
+    accentSoft: 'indigoSoft',
+    route: '/financial',
+  },
+  {
+    id: 'work',
+    label: 'Work',
+    subtitle: 'Tasks & focus',
+    description: 'Manage action items, summarise meetings, and stay ahead of your commitments.',
+    icon: 'list',
+    accent: 'marigold',
+    accentSoft: 'marigoldSoft',
+    route: '/work',
+  },
+];
+
+function ProfileCard({ profile, onPress }: { profile: Profile; onPress: () => void }) {
   const { colors } = useTheme();
   const items = [
     { label: 'Gym 3× each week', pct: 67, a: accent },

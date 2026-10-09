@@ -1,9 +1,3 @@
-import { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { useFonts } from 'expo-font';
 import {
   BricolageGrotesque_500Medium,
   BricolageGrotesque_700Bold,
@@ -15,11 +9,17 @@ import {
   Figtree_600SemiBold,
   Figtree_700Bold,
 } from '@expo-google-fonts/figtree';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { FONT } from '@/theme/typography';
-import { ThemeProvider } from '@/theme/ThemeProvider';
 import { SheetProvider } from '@/components/Sheet';
 import { ToastProvider } from '@/components/Toast';
+import { ThemeProvider } from '@/theme/ThemeProvider';
+import { FONT } from '@/theme/typography';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,7 +51,7 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="financial" />
-                <Stack.Screen name="personal" />
+                <Stack.Screen name="work" />
               </Stack>
             </SheetProvider>
           </ToastProvider>
