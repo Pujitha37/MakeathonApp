@@ -1,208 +1,234 @@
-// Ported from `activityHTML()` in finprofile.html.
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+// Pi-backed Activity: /transactions (paginated) + /recurring + review filter.
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { AppText } from '@/components/AppText';
 import { Segmented } from '@/components/Segmented';
 import { Button } from '@/components/Button';
-import { StatusChip } from '@/components/StatusChip';
-import { GroupedTxList } from '@/components/GroupedTxList';
-import { TxRow } from '@/components/TxRow';
-import { RecurringTab } from '@/components/RecurringTab';
-import { useSheet } from '@/components/Sheet';
-import { ImportSheetContent } from '@/components/sheets/ImportSheet';
-import { useStore } from '@/store/useStore';
-import { useShallow } from 'zustand/react/shallow';
-import { sum } from '@/lib/calc';
-import { detectRecurring, isRec } from '@/lib/recurring';
-import { fd, fmt } from '@/lib/format';
-import { SOURCES } from '@/data/types';
-import type { Source, Tx } from '@/data/types';
 import { useTheme } from '@/theme/ThemeProvider';
+import {
+  financialApi,
+  fmtPaise,
+  type Recurring,
+  type Transaction,
+  type TxType,
+} from '@/lib/financialApi';
+import { piCatColor, piCatEmoji, piCatLabel } from '@/lib/catMap';
+
+type Tab = 'all' | 'review' | 'recurring';
+
+const TYPE_LABELS: Record<TxType, string> = {
+  expense:  'Expense',
+  refund:   'Refund',
+  income:   'Income',
+  transfer: 'Transfer',
+};
 
 export default function ActivityScreen() {
-  const { tx, stmts, actTab, stmtSrc } = useStore(useShallow((s) => ({ tx: s.tx, stmts: s.stmts, actTab: s.actTab, stmtSrc: s.stmtSrc })));
-  const setActTab = useStore((s) => s.setActTab);
-  const setStmtSrc = useStore((s) => s.setStmtSrc);
-  const openStmt = useStore((s) => s.openStmt);
-  const setOpenStmt = useStore((s) => s.setOpenStmt);
-  const sheet = useSheet();
-  const recur = detectRecurring(tx);
+  const { colors } = useTheme();
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>('all');
+  const [items, setItems] = useState<Transaction[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [recurring, setRecurring] = useState<Recurring[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (tab === 'recurring') {
+        const r = await financialApi.recurring();
+        setRecurring(r);
+      } else {
+        const page = await financialApi.transactions({
+          needs_review: tab === 'review' ? true : undefined,
+          limit: 50,
+        });
+        setItems(page.items);
+        setCursor(page.next_cursor);
+      }
+    } catch (e: any) {
+      setError(e.message ?? 'Could not reach the Pi');
+    } finally {
+      setLoading(false);
+    }
+  }, [tab]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await financialApi.transactions({
+        needs_review: tab === 'review' ? true : undefined,
+        limit: 50,
+        cursor,
+      });
+      setItems((prev) => [...prev, ...page.items]);
+      setCursor(page.next_cursor);
+    } catch { /* ignore */ }
+    setLoadingMore(false);
+  };
+
+  const deleteTx = async (t: Transaction) => {
+    try {
+      await financialApi.deleteTransaction(t.id, t.revision);
+      setItems((prev) => prev.filter((x) => x.id !== t.id));
+    } catch { /* ignore */ }
+  };
 
   return (
     <Screen title="Activity" screen="activity" showScopeBar={false}>
       <Segmented
         options={[
-          { key: 'manual', label: 'Expenses' },
-          { key: 'statements', label: 'Statements' },
+          { key: 'all', label: 'All' },
+          { key: 'review', label: 'Needs review' },
           { key: 'recurring', label: 'Recurring' },
         ]}
-        value={actTab}
-        onChange={setActTab}
+        value={tab}
+        onChange={(v) => setTab(v as Tab)}
       />
 
-      {actTab === 'recurring' && <RecurringTab />}
+      {/* Import entry */}
+      {tab !== 'recurring' && (
+        <Button
+          label="Import a statement"
+          variant="soft"
+          block
+          style={{ marginBottom: 12 }}
+          onPress={() => router.push('/financial/import')}
+        />
+      )}
 
-      {actTab === 'manual' && (
+      {loading && (
+        <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+          <ActivityIndicator color={colors.indigo} />
+        </View>
+      )}
+
+      {!loading && error && (
+        <Card style={{ backgroundColor: colors.marigoldSoft }}>
+          <AppText type="labelMed" color={colors.marigold}>Pi not reachable</AppText>
+          <AppText type="caption" muted style={{ marginTop: 4 }}>{error}</AppText>
+        </Card>
+      )}
+
+      {!loading && !error && tab === 'recurring' && (
         <>
-          <Card flat style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <AppText style={{ fontSize: 26 }}>✍️</AppText>
-            <AppText type="label" muted style={{ flex: 1 }}>
-              Everything you've added by voice or typing. This is your everyday record.
-            </AppText>
-          </Card>
-          <Card style={{ paddingTop: 4 }}>
-            {(() => {
-              const list = tx
-                .filter((t) => t.source === 'manual' && t.type === 'expense')
-                .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
-                .slice(0, 40);
-              return list.length ? (
-                <GroupedTxList list={list} recurFn={(t) => isRec(recur, t)} />
-              ) : (
-                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                  <AppText style={{ fontSize: 40 }}>✍️</AppText>
-                  <AppText type="h3" style={{ marginTop: 8 }}>
-                    No expenses yet
-                  </AppText>
-                  <AppText type="label" muted>
-                    Add one from Home or the + button.
-                  </AppText>
+          {recurring.length === 0 ? (
+            <Card style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <AppText style={{ fontSize: 36 }}>🔁</AppText>
+              <AppText type="h3" style={{ marginTop: 6 }}>No recurring patterns yet</AppText>
+              <AppText type="label" muted style={{ marginTop: 4, textAlign: 'center' }}>
+                Pi detects these after you have ~3 months of data.
+              </AppText>
+            </Card>
+          ) : (
+            <Card>
+              {recurring.map((r, i) => (
+                <View key={r.merchant_key} style={[styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 10, marginTop: 2 }]}>
+                  <View style={[styles.ico, { backgroundColor: piCatColor(r.category_id) + '22' }]}>
+                    <AppText style={{ fontSize: 20 }}>{piCatEmoji(r.category_id)}</AppText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText type="bodyMed">{r.merchant}</AppText>
+                    <AppText type="captionSm" muted>
+                      {piCatLabel(r.category_id)} · ~day {r.typical_day} · {r.months_present}/3 months
+                    </AppText>
+                  </View>
+                  <AppText type="bodyMed" num>{fmtPaise(r.amount_paise)}</AppText>
                 </View>
-              );
-            })()}
-          </Card>
+              ))}
+            </Card>
+          )}
         </>
       )}
 
-      {actTab === 'statements' && (
+      {!loading && !error && tab !== 'recurring' && (
         <>
-          <Card flat style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <AppText style={{ fontSize: 26 }}>🗂️</AppText>
-            <AppText type="label" muted style={{ flex: 1 }}>
-              Statements are imported occasionally — add a new one when it arrives. Your day-to-day expenses live under{' '}
-              <AppText type="labelMed">Expenses</AppText>.
-            </AppText>
-          </Card>
-          <Segmented
-            options={[
-              { key: 'bank', label: '🏦 Bank' },
-              { key: 'card', label: '💳 Credit card' },
-            ]}
-            value={stmtSrc}
-            onChange={setStmtSrc}
-          />
-          <Button
-            label={`Import ${stmtSrc === 'bank' ? 'bank' : 'card'} statement`}
-            variant="soft"
-            block
-            style={{ marginBottom: 12 }}
-            onPress={() => sheet.open(<ImportSheetContent />, ['65%', '92%'])}
-          />
-          {stmts
-            .filter((s) => s.source === stmtSrc)
-            .sort((a, b) => b.to.localeCompare(a.to))
-            .map((s) => (
-              <StatementCard
-                key={s.id}
-                stmtId={s.id}
-                source={s.source}
-                name={s.name}
-                from={s.from}
-                to={s.to}
-                imported={s.imported}
-                tx={tx.filter((t) => t.stmt === s.id)}
-                open={openStmt === s.id}
-                onToggle={() => setOpenStmt(s.id)}
-              />
-            ))}
+          {items.length === 0 ? (
+            <Card style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <AppText style={{ fontSize: 36 }}>{tab === 'review' ? '✅' : '✍️'}</AppText>
+              <AppText type="h3" style={{ marginTop: 6 }}>
+                {tab === 'review' ? 'All caught up' : 'No transactions yet'}
+              </AppText>
+              <AppText type="label" muted style={{ marginTop: 4, textAlign: 'center' }}>
+                {tab === 'review'
+                  ? 'Nothing needs your review right now.'
+                  : 'Use Quick Add or import a statement.'}
+              </AppText>
+            </Card>
+          ) : (
+            <Card>
+              {items.map((t, i) => (
+                <TxItem key={t.id} t={t} divider={i > 0} onDelete={() => deleteTx(t)} />
+              ))}
+            </Card>
+          )}
+
+          {cursor && (
+            <Button
+              label={loadingMore ? 'Loading…' : 'Load more'}
+              variant="soft"
+              block
+              onPress={loadMore}
+              disabled={loadingMore}
+            />
+          )}
         </>
       )}
     </Screen>
   );
 }
 
-function StatementCard({
-  stmtId,
-  source,
-  name,
-  from,
-  to,
-  imported,
-  tx,
-  open,
-  onToggle,
-}: {
-  stmtId: string;
-  source: Source;
-  name: string;
-  from: string;
-  to: string;
-  imported: string;
-  tx: Tx[];
-  open: boolean;
-  onToggle: () => void;
-}) {
+function TxItem({ t, divider, onDelete }: { t: Transaction; divider: boolean; onDelete: () => void }) {
   const { colors } = useTheme();
-  const sorted = tx.slice().sort((a, b) => b.date.localeCompare(a.date));
-  const exp = sorted.filter((t) => t.type === 'expense');
-  const emis = sorted.filter((t) => t.type === 'emi');
-  const other = sorted.filter((t) => t.type === 'income' || t.type === 'transfer');
-  const year = to.split('-')[0];
+  const [open, setOpen] = useState(false);
+  const sign = t.type === 'income' ? '+' : t.type === 'refund' ? '+' : '';
+  const amtColor = t.type === 'income' ? colors.sage : t.type === 'refund' ? colors.sage : colors.ink;
 
   return (
-    <Card>
-      <Pressable onPress={onToggle} style={styles.stmt}>
-        <View style={[styles.ico, { backgroundColor: colors.indigoSoft }]}>
-          <AppText style={{ fontSize: 20 }}>{SOURCES[source].ico}</AppText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText type="h3">
-            {fd(from)} – {fd(to)} {year}
-          </AppText>
-          <AppText type="captionSm" muted>
-            {name}, {tx.length} rows, imported {fd(imported)}
-          </AppText>
-        </View>
-        <StatusChip tone="ok" label="Imported" />
-      </Pressable>
-      {open && (
-        <View style={{ marginTop: 10 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
-            <StatusChip tone="info" label={`Spending ${fmt(sum(exp))}`} />
-            {emis.length > 0 && <StatusChip tone="warn" label={`${emis.length} EMI payment${emis.length > 1 ? 's' : ''} ${fmt(sum(emis))}`} />}
-            {other.length > 0 && <StatusChip tone="warn" label={`${other.length} income or transfer rows not counted as spending`} />}
-          </View>
-          {sorted.map((t) =>
-            t.type !== 'income' && t.type !== 'transfer' ? (
-              <TxRow key={t.id} t={t} />
-            ) : (
-              <View key={t.id} style={styles.otherRow}>
-                <View style={[styles.ico, { backgroundColor: colors.surface2 }]}>
-                  <AppText style={{ fontSize: 20 }}>{t.type === 'income' ? '💰' : '🔄'}</AppText>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppText type="bodyMed">{t.merchant}</AppText>
-                  <AppText type="captionSm" muted>
-                    {t.type === 'income' ? 'Income' : 'Transfer between your accounts'}
-                  </AppText>
-                </View>
-                <AppText type="bodyMed" faint num>
-                  {t.type === 'income' ? '+' : ''}
-                  {fmt(t.amount)}
-                </AppText>
-              </View>
-            ),
+    <Pressable onPress={() => setOpen((v) => !v)} style={[styles.row, divider && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 10, marginTop: 2 }]}>
+      <View style={[styles.ico, { backgroundColor: piCatColor(t.category_id) + '22' }]}>
+        <AppText style={{ fontSize: 20 }}>{piCatEmoji(t.category_id)}</AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText type="bodyMed" numberOfLines={1}>{t.merchant ?? '—'}</AppText>
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <AppText type="captionSm" muted>{t.posted_date}</AppText>
+          <AppText type="captionSm" muted>·</AppText>
+          <AppText type="captionSm" muted>{TYPE_LABELS[t.type]}</AppText>
+          {t.needs_review === 1 && (
+            <AppText type="captionSm" style={{ color: colors.marigold }}>· review</AppText>
           )}
         </View>
-      )}
-    </Card>
+        {open && (
+          <>
+            <AppText type="captionSm" muted style={{ marginTop: 4 }}>
+              {piCatLabel(t.category_id)} · {t.category_origin}
+            </AppText>
+            {t.description && <AppText type="captionSm" muted>{t.description}</AppText>}
+            <Pressable onPress={onDelete} style={{ marginTop: 6 }}>
+              <AppText type="captionMed" color={colors.coral}>Delete</AppText>
+            </Pressable>
+          </>
+        )}
+      </View>
+      <AppText type="bodyMed" num style={{ color: amtColor }}>
+        {sign}{fmtPaise(t.amount_paise)}
+      </AppText>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  stmt: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10 },
   ico: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  otherRow: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10 },
 });

@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, TextInput, View, Vibration } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, Vibration } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { StatusChip } from '@/components/StatusChip';
+import { Mascot } from '@/components/Mascot';
 import { useTheme } from '@/theme/ThemeProvider';
 import {
   isRecord,
   isScamAlert,
   isSnapshotEvent,
   isTranscriptSegment,
-  normalizePiAddress,
   PiApiError,
   requestPiJson,
   websocketAddress,
@@ -26,6 +26,9 @@ import {
 const CONNECT_TIMEOUT_MS = 10_000;
 const KEEP_ALIVE_MS = 15_000;
 const MAX_RECONNECT_MS = 15_000;
+
+// Hardcoded Pi address — tap the bot to connect.
+const PI_URL = 'http://10.94.221.88:8000';
 
 function eventFromMessage(data: unknown): ScamEvent | null {
   if (typeof data !== 'string') return null;
@@ -54,7 +57,6 @@ function errorMessage(error: unknown): string {
 
 export default function FraudDetectionScreen() {
   const { colors, dark } = useTheme();
-  const [address, setAddress] = useState('');
   const [baseAddress, setBaseAddress] = useState('');
   const [connection, setConnection] = useState<ConnectionState>('disconnected');
   const [health, setHealth] = useState<PiHealth | null>(null);
@@ -335,8 +337,7 @@ export default function FraudDetectionScreen() {
     setNotice('');
     disconnect(false);
     try {
-      const base = normalizePiAddress(address);
-      setAddress(base);
+      const base = PI_URL;
       setBaseAddress(base);
       urlRef.current = base;
       setConnection('checking');
@@ -439,37 +440,78 @@ export default function FraudDetectionScreen() {
         <AppText type="h3" style={{ marginBottom: 4 }}>
           Connect to your Pi
         </AppText>
-        <AppText type="caption" muted style={{ marginBottom: 10 }}>
-          Enter the address printed by the Pi, for example 192.168.1.20:8000. Both devices must use the same private
-          Wi-Fi or hotspot.
+        <AppText type="caption" muted style={{ marginBottom: 14 }}>
+          Tap the bot to open a live link with the Pi at {PI_URL.replace(/^https?:\/\//, '')}. Both devices must share the
+          same private Wi-Fi or hotspot.
         </AppText>
-        <AppText type="captionSm" muted style={{ marginBottom: 10 }}>
-          Simulator: use localhost:8765 on iOS or 10.0.2.2:8765 on Android with the backend simulator; use your
-          computer&apos;s LAN address on a physical phone.
-        </AppText>
-        <TextInput
-          accessibilityLabel="Raspberry Pi address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!active && !busy}
-          keyboardType="url"
-          onChangeText={setAddress}
-          placeholder="http://192.168.1.20:8000"
-          placeholderTextColor={colors.ink3}
-          returnKeyType="go"
-          onSubmitEditing={() => void connect()}
-          value={address}
-          style={[
-            styles.addressInput,
-            { backgroundColor: colors.surface2, borderColor: colors.line, color: colors.ink },
+
+        <Pressable
+          accessibilityLabel="Connect to the Pi"
+          accessibilityRole="button"
+          disabled={busy || active || connection === 'connected'}
+          onPress={() => void connect()}
+          style={({ pressed }) => [
+            styles.botTap,
+            {
+              backgroundColor:
+                connection === 'connected'
+                  ? colors.sageSoft
+                  : connection === 'error'
+                    ? colors.coralSoft
+                    : connection === 'reconnecting'
+                      ? colors.marigoldSoft
+                      : colors.indigoSoft,
+              borderColor:
+                connection === 'connected'
+                  ? colors.sage
+                  : connection === 'error'
+                    ? colors.coral
+                    : connection === 'reconnecting'
+                      ? colors.marigold
+                      : colors.indigo,
+              opacity: pressed ? 0.85 : 1,
+            },
           ]}
-        />
-        <View style={styles.buttonRow}>
-          <Button label={busy ? 'Connecting…' : 'Connect'} variant="primary" disabled={busy || active} onPress={() => void connect()} />
-          {connection !== 'disconnected' && !active && (
+        >
+          <View style={styles.botMascot}>
+            <Mascot size={78} />
+            {(busy || connection === 'checking' || connection === 'connecting' || connection === 'reconnecting') && (
+              <View style={styles.botSpinner}>
+                <ActivityIndicator color={colors.indigo} />
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText type="h3" style={{ fontSize: 16 }}>
+              {connection === 'connected'
+                ? 'Linked with the Pi'
+                : connection === 'checking'
+                  ? 'Checking Pi…'
+                  : connection === 'connecting' || busy
+                    ? 'Opening live link…'
+                    : connection === 'reconnecting'
+                      ? 'Reconnecting…'
+                      : connection === 'error'
+                        ? 'Tap the bot to retry'
+                        : 'Tap the bot to connect'}
+            </AppText>
+            <AppText type="captionSm" muted style={{ marginTop: 2 }}>
+              {connection === 'connected'
+                ? 'Streaming transcript and warnings live.'
+                : `Pi · ${PI_URL.replace(/^https?:\/\//, '')}`}
+            </AppText>
+          </View>
+          <StatusChip
+            tone={connection === 'connected' ? 'ok' : connection === 'reconnecting' ? 'warn' : connection === 'error' ? 'bad' : 'info'}
+            label={connectionLabel[connection]}
+          />
+        </Pressable>
+
+        {connection !== 'disconnected' && !active && (
+          <View style={styles.buttonRow}>
             <Button label="Disconnect" disabled={busy} onPress={() => disconnect()} />
-          )}
-        </View>
+          </View>
+        )}
 
         {health && connection !== 'disconnected' && (
           <View style={[styles.healthRow, { backgroundColor: colors.surface2 }]}>
@@ -632,13 +674,16 @@ function NoticeCard({ tone, message }: { tone: 'warn' | 'bad' | 'info'; message:
 const styles = StyleSheet.create({
   cardHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shield: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  addressInput: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
+  botTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1.5,
+    borderRadius: 20,
+    padding: 14,
   },
+  botMascot: { width: 78, height: 82, alignItems: 'center', justifyContent: 'center' },
+  botSpinner: { position: 'absolute', bottom: -2, right: -2 },
   buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 },
   healthRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 12, marginTop: 12 },
   statusLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },

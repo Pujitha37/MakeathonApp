@@ -8,6 +8,9 @@ export default function FinancialLayout() {
       <Stack.Screen name="forecast" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="advice" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="fraud-detection" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="scam-bot" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="loans" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="import" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }

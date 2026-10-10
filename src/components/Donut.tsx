@@ -23,7 +23,7 @@ export function Donut({ cats, total, selected, onSelect }: DonutProps) {
   return (
     <View style={{ alignItems: 'center' }}>
       <Svg width={220} height={220} viewBox="0 0 220 220">
-        <G rotation={-90} origin="110,110">
+        <G transform="rotate(-90 110 110)">
           {cats.map(([c, v]) => {
             const len = (v / total) * C;
             const seg = (

@@ -195,7 +195,7 @@ function DotIndicator({ count, active }: { count: number; active: number }) {
 export default function HomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [activeIndex, setActiveIndex] = useState(1);
+  const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
 
   const [handleViewable] = useState(() => ({ viewableItems }: any) => {
@@ -203,16 +203,6 @@ export default function HomeScreen() {
   });
 
   const PROFILES = useMemo<Profile[]>(() => [
-    {
-      id: 'personal',
-      label: 'Personal',
-      subtitle: 'Goals & habits',
-      description: 'Track goals, build daily habits, and stay on top of what matters to you.',
-      icon: 'home',
-      accent: colors.sage,
-      accentSoft: colors.sageSoft,
-      route: '/personal',
-    },
     {
       id: 'financial',
       label: 'Financial',
@@ -231,7 +221,7 @@ export default function HomeScreen() {
       icon: 'list',
       accent: colors.marigold,
       accentSoft: colors.marigoldSoft,
-      route: null,
+      route: '/work',
     },
   ], [colors]);
 
@@ -271,7 +261,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
         onViewableItemsChanged={handleViewable}
         viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        initialScrollIndex={1}
+        initialScrollIndex={0}
         getItemLayout={(_, index) => ({ length: SNAP, offset: SNAP * index, index })}
         renderItem={({ item }) => <ProfileCard profile={item} />}
         ItemSeparatorComponent={() => <View style={{ width: 16 }} />}

@@ -1,64 +1,43 @@
-// Ported from `homeHTML()` in finprofile.html.
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet as SS, TextInput, View } from 'react-native';
+// Pi-backed Home: /summary, /comparisons, /budgets/status, /recurring, /loans, /advice preview.
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { Hero } from '@/components/Hero';
-import { QuickAddCard } from '@/components/QuickAddCard';
 import { Card } from '@/components/Card';
 import { AppText } from '@/components/AppText';
-import { EmptyState } from '@/components/EmptyState';
-import { AdviceCard } from '@/components/AdviceCard';
-import { BudgetRow } from '@/components/BudgetRow';
-import { ScheduleRow } from '@/components/ScheduleRow';
-import { SparkLine } from '@/components/SparkLine';
-import { StatusChip } from '@/components/StatusChip';
-import { TxRow } from '@/components/TxRow';
 import { Icon } from '@/components/Icon';
+import { StatusChip } from '@/components/StatusChip';
+import { QuickAddCard } from '@/components/QuickAddCard';
 import { SectionTitle } from '@/components/SectionTitle';
-import { useStore } from '@/store/useStore';
-import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
-import { budgetStatus, byCat, coverageEnd, expenses, monthBounds, sum } from '@/lib/calc';
-import { forecast } from '@/lib/forecast';
-import { adviceList } from '@/lib/advice';
-import { activeLoans, detectRecurring, isRec, scheduleItems } from '@/lib/recurring';
-import { fd, fmt, MON, MONL } from '@/lib/format';
-import { SHORT } from '@/data/types';
-import { TODAY } from '@/data/seed';
-import { CAT, CatId } from '@/theme/tokens';
+import {
+  financialApi,
+  fmtPaise,
+  monthStartISO,
+  monthEndExclusiveISO,
+  type Advice,
+  type BudgetStatus,
+  type ComparisonsResponse,
+  type Loan,
+  type Recurring,
+  type SummaryResponse,
+} from '@/lib/financialApi';
+import { piCatColor, piCatEmoji, piCatLabel } from '@/lib/catMap';
 
 const ASK_CHIPS: [string, string][] = [
-  ['Food last month', 'How much did I spend on food last month?'],
-  ['Biggest this month', 'Biggest expenses this month'],
+  ['Food this month', 'How much did I spend on food this month?'],
+  ['Biggest', 'Biggest expenses this month'],
   ['vs last month', 'Compare spending with last month'],
-  ['My EMIs', 'How much do I pay in EMIs?'],
+  ['EMIs', 'How much do I pay in EMIs?'],
 ];
-
-const askStyles = SS.create({
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 18,
-    paddingLeft: 14,
-    paddingVertical: 6,
-    paddingRight: 6,
-  },
-  input: { flex: 1, fontSize: 16, paddingVertical: 10 },
-  sendBtn: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
-});
 
 function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
   const { colors, shadow } = useTheme();
-  const [text, setText] = React.useState('');
-
+  const [text, setText] = useState('');
   const go = (q: string) => {
     if (!q.trim()) return;
     router.push({ pathname: '/financial/ask', params: { q } });
   };
-
   return (
     <Card style={{ padding: 12 }}>
       <View style={[askStyles.inputRow, { backgroundColor: colors.surface2 }]}>
@@ -66,7 +45,7 @@ function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
           value={text}
           onChangeText={setText}
           onSubmitEditing={() => go(text)}
-          placeholder="Ask a question about your spending"
+          placeholder="Ask the Pi about your spending"
           placeholderTextColor={colors.ink3}
           style={[askStyles.input, { color: colors.ink }]}
           returnKeyType="send"
@@ -75,19 +54,13 @@ function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
           <Icon name="send" size={20} color="#fff" />
         </Pressable>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {ASK_CHIPS.map(([label, query]) => (
-            <Pressable
-              key={label}
-              onPress={() => router.push({ pathname: '/financial/ask', params: { q: query } })}
-              style={[askStyles.chip, { backgroundColor: colors.surface, ...shadow }]}
-            >
-              <AppText type="captionMed">{label}</AppText>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+        {ASK_CHIPS.map(([label, query]) => (
+          <Pressable key={label} onPress={() => go(query)} style={[askStyles.chip, { backgroundColor: colors.surface, ...shadow }]}>
+            <AppText type="captionMed">{label}</AppText>
+          </Pressable>
+        ))}
+      </View>
     </Card>
   );
 }
@@ -95,181 +68,245 @@ function HomeAskCard({ router }: { router: ReturnType<typeof useRouter> }) {
 export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { tx, stmts, loans, budgets, goals, dismissed, scope, month, fcCat } = useStore(
-    useShallow((s) => ({
-      tx: s.tx,
-      stmts: s.stmts,
-      loans: s.loans,
-      budgets: s.budgets,
-      goals: s.goals,
-      dismissed: s.dismissed,
-      scope: s.scope,
-      month: s.month,
-      fcCat: s.fcCat,
-    }))
-  );
-  const setMonth = useStore((s) => s.setMonth);
 
-  const { y, m } = month;
-  const mb = monthBounds(stmts, scope, y, m);
-  const canPrev = !(y === 2026 && m === 6);
-  const canNext = !(y === 2026 && m === 9);
-  const isCur = y === 2026 && m === 9;
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [comparisons, setComparisons] = useState<ComparisonsResponse | null>(null);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus[]>([]);
+  const [recurring, setRecurring] = useState<Recurring[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [advice, setAdvice] = useState<Advice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  let heroProps: any = {
-    monthLabel: isCur ? 'October so far' : `${MONL[m]} ${y}`,
-    canPrev,
-    canNext,
-    onPrev: () => setMonth(-1),
-    onNext: () => setMonth(1),
-    hasData: mb.has,
-  };
-
-  if (!mb.has) {
-    heroProps.noDataReason = `No ${SHORT[scope].toLowerCase()} records cover this month.`;
-  } else {
-    const list = expenses(tx, scope, mb.start, mb.cov);
-    const total = sum(list);
-    const cats = byCat(list);
-    heroProps = {
-      ...heroProps,
-      total,
-      count: list.length,
-      rangeLabel: `${fd(mb.start)}–${fd(mb.cov)}`,
-      complete: mb.complete,
-      cats,
-    };
-    if (isCur) {
-      const d = mb.cov.getDate();
-      const pE = new Date(y, m - 1, d);
-      if (+coverageEnd(stmts, scope) >= +pE) {
-        const prev = sum(expenses(tx, scope, new Date(y, m - 1, 1), pE));
-        const diff = total - prev;
-        heroProps.deltaText = `${fmt(Math.abs(diff))} ${diff >= 0 ? 'more' : 'less'} than 1–${d} ${MON[m - 1]}`;
-        heroProps.deltaUp = diff >= 0;
-      }
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const [s, c, b, r, l, a] = await Promise.all([
+        financialApi.summary(monthStartISO(), monthEndExclusiveISO()),
+        financialApi.comparisons().catch(() => null),
+        financialApi.budgetsStatus().catch(() => []),
+        financialApi.recurring().catch(() => []),
+        financialApi.loans().catch(() => []),
+        financialApi.advice().catch(() => []),
+      ]);
+      setSummary(s);
+      setComparisons(c);
+      setBudgetStatus(b);
+      setRecurring(r);
+      setLoans(l.filter((x) => !x.done && !x.archived));
+      setAdvice(a);
+    } catch (e: any) {
+      setError(e.message ?? 'Could not reach the Pi');
     }
-  }
+  }, []);
 
-  const recur = detectRecurring(tx);
-  const adv = adviceList(tx, stmts, scope, budgets, goals, dismissed);
-  const budgetCats = Object.keys(budgets) as CatId[];
-  const curMb = monthBounds(stmts, scope, 2026, 9);
-  const f = forecast(tx, stmts, scope, budgets, fcCat);
-  const loansActive = activeLoans(tx, stmts, loans);
-  const committedTotal = loansActive.reduce((a, x) => a + x.L.emi, 0) + recur.reduce((a, r) => a + r.amount, 0);
-  const schedule = scheduleItems(tx, stmts, loans, recur).filter((x) => x.day >= TODAY.getDate()).slice(0, 3);
-  const recent = tx
-    .filter((t) => t.type === 'expense' && t.source === scope)
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
-    .slice(0, 5);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load().finally(() => setLoading(false)); }, [load]);
+
+  const activeLoans = loans;
+  const monthlyEmi = activeLoans.reduce((a, l) => a + l.emi_paise, 0);
+  const monthlyRecurring = recurring.reduce((a, r) => a + r.amount_paise, 0);
+  const committedTotal = monthlyEmi + monthlyRecurring;
+  const now = new Date();
+  const monthLabel = now.toLocaleString('en', { month: 'long', year: 'numeric' });
 
   return (
-    <Screen title="Money" subtitle="Good evening, Thursday 8 Oct" screen="home">
-      <Hero {...heroProps} />
-
-      {!mb.has && scope !== 'manual' && (
-        <EmptyState scope={scope} coverageEndDate={coverageEnd(stmts, scope)} hasStmts={stmts.some((s) => s.source === scope)} />
-      )}
-
-      <QuickAddCard />
-
-      <HomeAskCard router={router} />
-
-      <SectionTitle label="Call protection" action="Open" onAction={() => router.push('/financial/fraud-detection')} />
-      <Card onPress={() => router.push('/financial/fraud-detection')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.indigoSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <AppText style={{ fontSize: 24 }}>🛡️</AppText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText type="h3">Scam Guard</AppText>
-          <AppText type="caption" muted>Connect to your Pi to monitor speakerphone calls</AppText>
-        </View>
-        <AppText type="h3" muted>›</AppText>
+    <Screen title="Money" subtitle={`${monthLabel} · live from Pi`} screen="home" showScopeBar={false}>
+      {/* Hero: live summary */}
+      <Card style={{ backgroundColor: colors.heroBg, paddingVertical: 28, paddingHorizontal: 24 }}>
+        <AppText type="captionMed" style={{ color: colors.onIndigo, opacity: 0.75, letterSpacing: 1.2, fontSize: 11 }}>
+          THIS MONTH TO DATE
+        </AppText>
+        {loading && !summary ? (
+          <View style={{ paddingVertical: 28, alignItems: 'flex-start' }}>
+            <ActivityIndicator color={colors.onIndigo} />
+          </View>
+        ) : error ? (
+          <View style={{ marginTop: 14 }}>
+            <AppText type="h3" style={{ color: colors.onIndigo }}>Pi not reachable</AppText>
+            <AppText type="caption" style={{ color: colors.onIndigo, opacity: 0.8, marginTop: 6 }}>{error}</AppText>
+            <Pressable
+              onPress={() => { setLoading(true); load().finally(() => setLoading(false)); }}
+              style={{ marginTop: 16, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.onIndigo, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 16 }}
+            >
+              <AppText type="captionMed" style={{ color: colors.onIndigo }}>Try again</AppText>
+            </Pressable>
+          </View>
+        ) : summary && (
+          <View style={{ marginTop: 10 }}>
+            <AppText style={{ color: colors.onIndigo, fontSize: 44, fontWeight: '800', lineHeight: 52, fontVariant: ['tabular-nums'] }}>
+              {fmtPaise(summary.net_spending_paise)}
+            </AppText>
+            <AppText type="caption" style={{ color: colors.onIndigo, opacity: 0.8, marginTop: 6, lineHeight: 18 }}>
+              {summary.expense_count} expenses · {summary.start_date} to {summary.end_date_exclusive}
+            </AppText>
+            {comparisons && comparisons.delta_net_paise !== undefined && (
+              <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 99 }}>
+                  <AppText type="captionMed" style={{ color: colors.onIndigo }}>
+                    {comparisons.delta_net_paise >= 0 ? '↑' : '↓'} {fmtPaise(Math.abs(comparisons.delta_net_paise))} vs same days last month
+                  </AppText>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </Card>
 
-      {adv.length > 0 && (
+      {/* Quick Add — Pi-powered parse */}
+      <QuickAddCard />
+
+      {/* Ask shortcut */}
+      <HomeAskCard router={router} />
+
+      {/* Pending reviews callout */}
+      {summary && summary.review_count > 0 && (
+        <Card style={{ backgroundColor: colors.marigoldSoft, flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <AppText style={{ fontSize: 26 }}>⚠️</AppText>
+          <View style={{ flex: 1 }}>
+            <AppText type="h3" style={{ fontSize: 15 }}>{summary.review_count} transactions need review</AppText>
+            <AppText type="caption" muted>Pi flagged uncertain categories</AppText>
+          </View>
+          <Pressable onPress={() => router.push('/financial/activity')}>
+            <AppText type="captionMed" color={colors.marigold}>Review</AppText>
+          </Pressable>
+        </Card>
+      )}
+
+      {/* Advice preview */}
+      {advice.length > 0 && (
         <>
-          <SectionTitle label="For you" action={`See all ${adv.length}`} onAction={() => router.push('/financial/advice')} />
-          <AdviceCard item={adv[0]} preview />
+          <SectionTitle label="For you" action={`See all ${advice.length}`} onAction={() => router.push('/financial/advice')} />
+          {advice.slice(0, 2).map((a) => {
+            const toneColor = a.tone === 'good' ? colors.sage : colors.marigold;
+            const toneSoft = a.tone === 'good' ? colors.sageSoft : colors.marigoldSoft;
+            return (
+              <Card key={a.id} style={{ borderLeftWidth: 4, borderLeftColor: toneColor, backgroundColor: toneSoft }}>
+                <AppText type="h3" style={{ fontSize: 15 }}>{a.title}</AppText>
+                <AppText type="label" muted style={{ marginTop: 4 }}>{a.body}</AppText>
+              </Card>
+            );
+          })}
         </>
       )}
 
-      {budgetCats.length > 0 && curMb.has && (
+      {/* Category breakdown */}
+      {summary && summary.category_breakdown.length > 0 && (
         <>
-          <SectionTitle label="October budgets" action="Manage" onAction={() => router.push('/financial/plan')} />
+          <SectionTitle label="Where it's going" action="Details" onAction={() => router.push('/financial/insights')} />
           <Card>
-            {budgetCats.map((cat, i) => (
-              <BudgetRow key={cat} cat={cat} status={budgetStatus(tx, stmts, scope, budgets, cat)} divider={i > 0} />
-            ))}
+            {summary.category_breakdown.slice(0, 5).map((cb, i) => {
+              const pct = summary.gross_expense_paise ? (cb.gross_expense_paise / summary.gross_expense_paise) * 100 : 0;
+              return (
+                <View key={cb.category_id} style={{ marginBottom: i < 4 ? 10 : 0 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <AppText type="captionMed">{piCatEmoji(cb.category_id)} {piCatLabel(cb.category_id)}</AppText>
+                    <AppText type="captionMed" num>{fmtPaise(cb.gross_expense_paise)}</AppText>
+                  </View>
+                  <View style={{ height: 6, borderRadius: 99, backgroundColor: colors.line, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', width: `${Math.min(100, pct)}%`, backgroundColor: piCatColor(cb.category_id) }} />
+                  </View>
+                </View>
+              );
+            })}
           </Card>
         </>
       )}
 
-      <SectionTitle label="Recurring & EMIs" action="See all" onAction={() => router.push('/financial/activity')} />
-      <Card onPress={() => router.push('/financial/activity')}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+      {/* Budgets status */}
+      {budgetStatus.length > 0 && (
+        <>
+          <SectionTitle label="Budget status" action="Manage" onAction={() => router.push('/financial/plan')} />
+          <Card>
+            {budgetStatus.map((b, i) => {
+              const pct = parseFloat(b.usage_percent);
+              const over = pct > 100;
+              return (
+                <View key={b.category_id} style={{ marginBottom: i < budgetStatus.length - 1 ? 12 : 0 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <AppText type="captionMed">{piCatEmoji(b.category_id)} {piCatLabel(b.category_id)}</AppText>
+                    <AppText type="captionMed" num style={{ color: over ? colors.marigold : colors.ink }}>
+                      {fmtPaise(b.spent_paise)} / {fmtPaise(b.budget_paise)}
+                    </AppText>
+                  </View>
+                  <View style={{ height: 6, borderRadius: 99, backgroundColor: colors.line, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', width: `${Math.min(100, pct)}%`, backgroundColor: over ? colors.marigold : piCatColor(b.category_id) }} />
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        </>
+      )}
+
+      {/* Recurring & EMIs */}
+      <SectionTitle label="Recurring & EMIs" action="See all" onAction={() => router.push('/financial/loans')} />
+      <Card>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
           <View>
-            <AppText type="caption" muted>
-              Committed every month
-            </AppText>
-            <AppText type="numLg" num style={{ fontSize: 28 }}>
-              {fmt(committedTotal)}
-            </AppText>
+            <AppText type="caption" muted>Committed each month</AppText>
+            <AppText type="h3" num style={{ fontSize: 24 }}>{fmtPaise(committedTotal)}</AppText>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <StatusChip tone="warn" label={`${loansActive.length} EMIs`} />
-            <AppText type="caption" muted style={{ marginTop: 4 }}>
-              {recur.length} recurring
-            </AppText>
+            <StatusChip tone="warn" label={`${activeLoans.length} EMI${activeLoans.length !== 1 ? 's' : ''}`} />
+            <AppText type="caption" muted style={{ marginTop: 4 }}>{recurring.length} recurring</AppText>
           </View>
         </View>
-        <AppText type="caption" muted style={{ marginTop: 6 }}>
-          Coming up
-        </AppText>
-        {schedule.map((x, i) => (
-          <ScheduleRow key={i} item={x} divider={i > 0} />
+        {recurring.slice(0, 3).map((r, i) => (
+          <View key={i} style={styles.row}>
+            <View style={[styles.icon, { backgroundColor: piCatColor(r.category_id) + '22' }]}>
+              <AppText style={{ fontSize: 18 }}>{piCatEmoji(r.category_id)}</AppText>
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText type="bodyMed">{r.merchant}</AppText>
+              <AppText type="captionSm" muted>~day {r.typical_day}</AppText>
+            </View>
+            <AppText type="bodyMed" num>{fmtPaise(r.amount_paise)}</AppText>
+          </View>
         ))}
       </Card>
 
-      <SectionTitle label="Month-end estimate" action="Details" onAction={() => router.push('/financial/forecast')} />
-      {f.ok ? (
-        <Card onPress={() => router.push('/financial/forecast')}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <AppText type="h3">
-              {CAT[fcCat].emoji} {CAT[fcCat].label}
-            </AppText>
-            <StatusChip tone={f.budget && f.projected > f.budget ? 'warn' : 'ok'} label={f.budget && f.projected > f.budget ? 'May exceed' : 'Within budget'} />
-          </View>
-          <AppText type="caption" muted>
-            About <AppText type="captionMed" num>{fmt(f.projected)}</AppText> by 31 Oct if the current pace continues
-            {f.budget ? ` (budget ${fmt(f.budget)})` : ''}. Estimate only.
-          </AppText>
-          <SparkLine f={f} mini />
-        </Card>
-      ) : (
-        <Card>
-          <AppText type="h3">Not enough data yet</AppText>
-          <AppText type="caption" muted>
-            {f.reason}
-          </AppText>
-        </Card>
-      )}
+      {/* Imports entry */}
+      <SectionTitle label="Statement imports" action="Import" onAction={() => router.push('/financial/import')} />
+      <Card onPress={() => router.push('/financial/import')} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.indigoSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <AppText style={{ fontSize: 20 }}>🗂️</AppText>
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText type="h3" style={{ fontSize: 15 }}>Upload a statement</AppText>
+          <AppText type="caption" muted>CSV or PDF · review before commit</AppText>
+        </View>
+        <AppText type="h3" muted>›</AppText>
+      </Card>
 
-      <SectionTitle label="Recent" action="All activity" onAction={() => router.push('/financial/activity')} />
-      <Card>
-        {recent.length ? (
-          recent.map((t, i) => <TxRow key={t.id} t={t} recurring={isRec(recur, t)} divider={i > 0} />)
-        ) : (
-          <AppText type="label" muted>
-            Nothing yet.
-          </AppText>
-        )}
+      {/* Scam Guard — bot-first UI */}
+      <SectionTitle label="Call protection" action="Open" onAction={() => router.push('/financial/scam-bot')} />
+      <Card onPress={() => router.push('/financial/scam-bot')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.indigoSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <AppText style={{ fontSize: 24 }}>🤖</AppText>
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText type="h3">Scam Guard bot</AppText>
+          <AppText type="caption" muted>Tap the bot — it listens and warns live</AppText>
+        </View>
+        <AppText type="h3" muted>›</AppText>
       </Card>
 
       <AppText type="caption" faint style={{ textAlign: 'center', marginTop: 18 }}>
-        Calculated on this phone. Wording by the Pi, on your local network.
+        Live from your Pi at :8002. All numbers come from the API, never the model.
       </AppText>
     </Screen>
   );
 }
+
+const askStyles = StyleSheet.create({
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 18, paddingLeft: 14, paddingVertical: 6, paddingRight: 6 },
+  input: { flex: 1, fontSize: 16, paddingVertical: 10 },
+  sendBtn: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
+});
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  icon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+});
